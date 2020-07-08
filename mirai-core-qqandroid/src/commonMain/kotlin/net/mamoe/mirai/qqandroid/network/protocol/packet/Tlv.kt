@@ -16,11 +16,11 @@ import kotlinx.io.core.ByteReadPacket
 import kotlinx.io.core.toByteArray
 import kotlinx.io.core.writeFully
 import net.mamoe.mirai.qqandroid.network.protocol.LoginType
+import net.mamoe.mirai.qqandroid.utils.MiraiPlatformUtils
 import net.mamoe.mirai.qqandroid.utils.NetworkType
-import net.mamoe.mirai.utils.MiraiInternalAPI
-import net.mamoe.mirai.utils.MiraiPlatformUtils
+import net.mamoe.mirai.qqandroid.utils.io.*
+import net.mamoe.mirai.qqandroid.utils.toByteArray
 import net.mamoe.mirai.utils.currentTimeMillis
-import net.mamoe.mirai.utils.io.*
 import kotlin.random.Random
 
 /**
@@ -79,10 +79,10 @@ internal fun BytePacketBuilder.t18(
     } shouldEqualsTo 22
 }
 
-@OptIn(MiraiInternalAPI::class)
+
 internal fun BytePacketBuilder.t106(
     appId: Long = 16L,
-    subAppId: Long = 537062845L,
+    subAppId: Long,
     appClientVersion: Int = 0,
     uin: Long,
     n5_always_1: Int = 1,
@@ -158,7 +158,7 @@ internal fun BytePacketBuilder.t116(
 
 internal fun BytePacketBuilder.t100(
     appId: Long = 16,
-    subAppId: Long = 537062845,
+    subAppId: Long,
     appClientVersion: Int
 ) {
     writeShort(0x100)
@@ -325,7 +325,7 @@ internal fun BytePacketBuilder.t144(
     }
 }
 
-@OptIn(MiraiInternalAPI::class)
+
 internal fun BytePacketBuilder.t109(
     androidId: ByteArray
 ) {
@@ -561,7 +561,7 @@ internal fun BytePacketBuilder.t400(
     }
 }
 
-@OptIn(MiraiInternalAPI::class)
+
 internal fun BytePacketBuilder.t187(
     macAddress: ByteArray
 ) {
@@ -571,7 +571,7 @@ internal fun BytePacketBuilder.t187(
     }
 }
 
-@OptIn(MiraiInternalAPI::class)
+
 internal fun BytePacketBuilder.t188(
     androidId: ByteArray
 ) {

@@ -7,27 +7,39 @@
  * https://github.com/mamoe/mirai/blob/master/LICENSE
  */
 
-@file:Suppress("unused")
+@file:Suppress("unused", "UnusedImport")
 
 package net.mamoe.mirai.contact
 
 import net.mamoe.mirai.Bot
 import net.mamoe.mirai.JavaFriendlyAPI
 import net.mamoe.mirai.event.events.*
+import net.mamoe.mirai.getFriendOrNull
 import net.mamoe.mirai.message.MessageReceipt
 import net.mamoe.mirai.message.data.Message
-import net.mamoe.mirai.utils.MiraiInternalAPI
+import net.mamoe.mirai.message.data.isContentEmpty
+import net.mamoe.mirai.message.data.toMessage
+import net.mamoe.mirai.message.recall
+import net.mamoe.mirai.utils.hoursToSeconds
+import net.mamoe.mirai.utils.daysToSeconds
+import net.mamoe.mirai.utils.minutesToSeconds
 import net.mamoe.mirai.utils.WeakRefProperty
 import kotlin.jvm.JvmSynthetic
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 
 /**
- * 群成员.
- */ // 不要删除多平台结构, kotlin bug
-@Suppress("INAPPLICABLE_JVM_NAME")
-@OptIn(MiraiInternalAPI::class, JavaFriendlyAPI::class)
-expect abstract class Member() : MemberJavaFriendlyAPI {
+ * 代表一位群成员.
+ *
+ * 群成员可能也是好友, 但他们在对象类型上不同.
+ * 群成员可以通过 [asFriend] 得到相关好友对象.
+ *
+ * ## 与好友相关的操作
+ * [Member.isFriend] 判断此成员是否为好友
+ */
+@Suppress("INAPPLICABLE_JVM_NAME", "EXPOSED_SUPER_CLASS")
+@OptIn(JavaFriendlyAPI::class)
+abstract class Member : MemberJavaFriendlyAPI, User() {
     /**
      * 所在的群.
      */
@@ -87,12 +99,16 @@ expect abstract class Member() : MemberJavaFriendlyAPI {
      * @param durationSeconds 持续时间. 精确到秒. 范围区间表示为 `(0s, 30days]`. 超过范围则会抛出异常.
      * @return 机器人无权限时返回 `false`
      *
+     * @see Member.isMuted 判断此成员是否正处于禁言状态中
+     * @see unmute 取消禁言此成员
+     *
      * @see Int.minutesToSeconds
      * @see Int.hoursToSeconds
      * @see Int.daysToSeconds
      *
      * @see MemberMuteEvent 成员被禁言事件
-     * @throws PermissionDeniedException 无权限修改时
+     *
+     * @throws PermissionDeniedException 无权限修改时抛出
      */
     @JvmSynthetic
     abstract suspend fun mute(durationSeconds: Int)
@@ -102,8 +118,11 @@ expect abstract class Member() : MemberJavaFriendlyAPI {
      *
      * 管理员可解除成员的禁言, 群主可解除管理员和群员的禁言.
      *
-     * @see MemberUnmuteEvent 成员被取消禁言事件.
-     * @throws PermissionDeniedException 无权限修改时
+     * @see Member.isMuted 判断此成员是否正处于禁言状态中
+     *
+     * @see MemberUnmuteEvent 成员被取消禁言事件
+     *
+     * @throws PermissionDeniedException 无权限修改时抛出
      */
     @JvmSynthetic
     abstract suspend fun unmute()
@@ -120,44 +139,94 @@ expect abstract class Member() : MemberJavaFriendlyAPI {
     abstract suspend fun kick(message: String = "")
 
     /**
-     * 当且仅当 `[other] is [Member] && [other].id == this.id && [other].group == this.group` 时为 true
-     */
-    abstract override fun equals(other: Any?): Boolean
-
-    /**
-     * @return `bot.hashCode() * 31 + id.hashCode()`
-     */
-    abstract override fun hashCode(): Int
-
-    /**
-     * 向这个对象发送消息.
+     * 向群成员发送消息.
+     * 若群成员同时是好友, 则会发送好友消息. 否则发送临时会话消息.
      *
-     * @see MessageSendEvent.FriendMessageSendEvent 发送好友信息事件, cancellable
-     * @see MessageSendEvent.GroupMessageSendEvent  发送群消息事件. cancellable
+     * 单条消息最大可发送 4500 字符或 50 张图片.
      *
-     * @throws EventCancelledException 当发送消息事件被取消
-     * @throws IllegalStateException 发送群消息时若 [Bot] 被禁言抛出
+     * @see FriendMessagePreSendEvent 当此成员是好友时发送消息前事件
+     * @see FriendMessagePostSendEvent 当此成员是好友时发送消息后事件
+     *
+     * @see TempMessagePreSendEvent 当此成员不是好友时发送消息前事件
+     * @see TempMessagePostSendEvent 当此成员不是好友时发送消息后事件
+     *
+     * @throws EventCancelledException 当发送消息事件被取消时抛出
+     * @throws BotIsBeingMutedException 发送群消息时若 [Bot] 被禁言抛出
+     * @throws MessageTooLargeException 当消息过长时抛出
+     * @throws IllegalArgumentException 当消息内容为空时抛出 (详见 [Message.isContentEmpty])
      *
      * @return 消息回执. 可进行撤回 ([MessageReceipt.recall])
      */
     @JvmSynthetic
     abstract override suspend fun sendMessage(message: Message): MessageReceipt<Member>
+
+    /**
+     * @see sendMessage
+     */
+    @Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE", "VIRTUAL_MEMBER_HIDDEN", "OVERRIDE_BY_INLINE")
+    @kotlin.internal.InlineOnly
+    @JvmSynthetic
+    suspend inline fun sendMessage(message: String): MessageReceipt<Member> {
+        return sendMessage(message.toMessage())
+    }
+
+    final override fun toString(): String = "Member($id)"
+}
+
+/**
+ * 得到此成员作为好友的对象.
+ *
+ * @throws IllegalStateException 当此成员不是好友时抛出
+ */
+fun Member.asFriend(): Friend = this.bot.getFriendOrNull(this.id) ?: error("$this is not a friend")
+
+/**
+ * 得到此成员作为好友的对象, 当此成员不是好友时返回 `null`
+ */
+fun Member.asFriendOrNull(): Friend? = this.bot.getFriendOrNull(this.id)
+
+/**
+ * 判断此成员是否为好友
+ */
+inline val Member.isFriend: Boolean
+    get() = this.bot.friends.contains(this.id)
+
+/**
+ * 如果此成员是好友, 则执行 [block] 并返回其返回值. 否则返回 `null`
+ */
+inline fun <R> Member.takeIfIsFriend(block: (Friend) -> R): R? {
+    return this.asFriendOrNull()?.let(block)
 }
 
 /**
  * 获取非空群名片或昵称.
  *
- * 若 [群名片][Member.nameCard] 不为空则返回群名片, 为空则返回 [QQ.nick]
+ * 若 [群名片][Member.nameCard] 不为空则返回群名片, 为空则返回 [User.nick]
  */
 val Member.nameCardOrNick: String get() = this.nameCard.takeIf { it.isNotEmpty() } ?: this.nick
 
 /**
- * 判断改成员是否处于禁言状态.
+ * 获取非空群名片或昵称.
+ *
+ * @return 当 [User] 为 [Member] 时返回 [Member.nameCardOrNick]
+ *
+ * 否则返回 [Member.nick]
  */
-fun Member.isMuted(): Boolean {
-    return muteTimeRemaining != 0 && muteTimeRemaining != 0xFFFFFFFF.toInt()
-}
+val User.nameCardOrNick: String
+    get() = when (this) {
+        is Member -> this.nameCardOrNick
+        else -> this.nick
+    }
 
+/**
+ * 判断群成员是否处于禁言状态.
+ */
+val Member.isMuted: Boolean
+    get() = muteTimeRemaining != 0 && muteTimeRemaining != 0xFFFFFFFF.toInt()
+
+/**
+ * @see Member.mute
+ */
 @ExperimentalTime
 suspend inline fun Member.mute(duration: Duration) {
     require(duration.inDays <= 30) { "duration must be at most 1 month" }
@@ -165,4 +234,7 @@ suspend inline fun Member.mute(duration: Duration) {
     this.mute(duration.inSeconds.toInt())
 }
 
+/**
+ * @see Member.mute
+ */
 suspend inline fun Member.mute(durationSeconds: Long) = this.mute(durationSeconds.toInt())

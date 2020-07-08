@@ -8,7 +8,7 @@ plugins {
     id("com.jfrog.bintray") version Versions.Publishing.bintray
 }
 
-description = "QQ protocol library"
+description = "Mirai Protocol implementation for QQ Android"
 
 val isAndroidSDKAvailable: Boolean by project
 
@@ -40,25 +40,33 @@ kotlin {
         all {
             languageSettings.enableLanguageFeature("InlineClasses")
             languageSettings.useExperimentalAnnotation("kotlin.Experimental")
+            languageSettings.useExperimentalAnnotation("net.mamoe.mirai.utils.MiraiInternalAPI")
+            languageSettings.useExperimentalAnnotation("net.mamoe.mirai.utils.MiraiExperimentalAPI")
+            languageSettings.useExperimentalAnnotation("net.mamoe.mirai.LowLevelAPI")
+            languageSettings.useExperimentalAnnotation("kotlin.ExperimentalUnsignedTypes")
+            languageSettings.useExperimentalAnnotation("kotlin.experimental.ExperimentalTypeInference")
+            languageSettings.useExperimentalAnnotation("kotlin.time.ExperimentalTime")
+            languageSettings.useExperimentalAnnotation("kotlin.contracts.ExperimentalContracts")
+            languageSettings.progressiveMode = true
 
             dependencies {
                 api(project(":mirai-core"))
             }
         }
 
-        commonMain {
+        val commonMain by getting {
             dependencies {
                 api(kotlin("stdlib", Versions.Kotlin.stdlib))
                 api(kotlinx("serialization-runtime-common", Versions.Kotlin.serialization))
                 api(kotlinx("serialization-protobuf-common", Versions.Kotlin.serialization))
+                api("moe.him188:jcekt-common:${Versions.jcekt}")
                 api("org.jetbrains.kotlinx:atomicfu:${Versions.Kotlin.atomicFU}")
                 api(kotlinx("io", Versions.Kotlin.io))
                 api(kotlinx("coroutines-io", Versions.Kotlin.coroutinesIo))
-                api(kotlinx("coroutines-core", Versions.Kotlin.coroutines))
             }
         }
 
-        commonTest {
+        val commonTest by getting {
             dependencies {
                 implementation(kotlin("test-annotations-common"))
                 implementation(kotlin("test-common"))
@@ -86,6 +94,8 @@ kotlin {
         val jvmMain by getting {
             dependencies {
                 runtimeOnly(files("build/classes/kotlin/jvm/main")) // classpath is not properly set by IDE
+                //    api(kotlinx("coroutines-debug", Versions.Kotlin.coroutines))
+                api("moe.him188:jcekt:${Versions.jcekt}")
                 api(kotlinx("serialization-runtime", Versions.Kotlin.serialization))
                 //api(kotlinx("serialization-protobuf", Versions.Kotlin.serialization))
 
@@ -94,6 +104,7 @@ kotlin {
 
         val jvmTest by getting {
             dependencies {
+                dependsOn(commonTest)
                 implementation(kotlin("test", Versions.Kotlin.stdlib))
                 implementation(kotlin("test-junit", Versions.Kotlin.stdlib))
                 implementation("org.pcap4j:pcap4j-distribution:1.8.2")

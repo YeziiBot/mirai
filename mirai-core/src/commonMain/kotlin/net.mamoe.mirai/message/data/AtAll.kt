@@ -12,32 +12,45 @@
 
 package net.mamoe.mirai.message.data
 
+import net.mamoe.mirai.message.code.CodableMessage
 import kotlin.jvm.JvmMultifileClass
 import kotlin.jvm.JvmName
 
-private const val display = "@全体成员"
+private const val displayA = "@全体成员"
 
 /**
  * "@全体成员".
  *
  * 非会员每天只能发送 10 次 [AtAll]. 超出部分会被以普通文字看待.
  *
+ * ## mirai 码支持
+ * 格式: &#91;mirai:atall&#93;
+ *
  * @see At at 单个群成员
  */
 object AtAll :
     Message.Key<AtAll>,
-    MessageContent,
-    CharSequence by display,
-    Comparable<String> by display {
+    MessageContent, CodableMessage {
+    const val display = displayA
+    override val typeName: String
+        get() = "AtAll"
 
-    override fun toString(): String = display
+    @Suppress("SpellCheckingInspection")
+    override fun toString(): String = "[mirai:atall]"
+    override fun contentToString(): String = display
+    override fun equals(other: Any?): Boolean {
+        return other === this
+    }
+
+    override fun hashCode(): Int {
+        return display.hashCode()
+    }
 
     // 自动为消息补充 " "
-
-    override fun followedBy(tail: Message): CombinedMessage {
-        if (tail is PlainText && tail.stringValue.startsWith(' ')) {
-            return super.followedBy(tail)
+    override fun followedBy(tail: Message): MessageChain {
+        if (tail is PlainText && tail.content.startsWith(' ')) {
+            return super<MessageContent>.followedBy(tail)
         }
-        return super.followedBy(PlainText(" ")) + tail
+        return super<MessageContent>.followedBy(PlainText(" ")) + tail
     }
 }

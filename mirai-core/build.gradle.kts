@@ -4,12 +4,12 @@ plugins {
     kotlin("multiplatform")
     id("kotlinx-atomicfu")
     kotlin("plugin.serialization")
-    id("org.jetbrains.dokka")
+    id("signing")
     `maven-publish`
     id("com.jfrog.bintray") version Versions.Publishing.bintray
 }
 
-description = "QQ protocol library"
+description = "Mirai API module"
 
 val isAndroidSDKAvailable: Boolean by project
 
@@ -34,12 +34,22 @@ kotlin {
         )
     }
 
-    jvm()
+    jvm() {
+        // withJava() // https://youtrack.jetbrains.com/issue/KT-39991
+    }
 
     sourceSets {
         all {
             languageSettings.enableLanguageFeature("InlineClasses")
             languageSettings.useExperimentalAnnotation("kotlin.Experimental")
+            languageSettings.useExperimentalAnnotation("net.mamoe.mirai.utils.MiraiInternalAPI")
+            languageSettings.useExperimentalAnnotation("net.mamoe.mirai.utils.MiraiExperimentalAPI")
+            languageSettings.useExperimentalAnnotation("net.mamoe.mirai.LowLevelAPI")
+            languageSettings.useExperimentalAnnotation("kotlin.ExperimentalUnsignedTypes")
+            languageSettings.useExperimentalAnnotation("kotlin.experimental.ExperimentalTypeInference")
+            languageSettings.useExperimentalAnnotation("kotlin.time.ExperimentalTime")
+            languageSettings.useExperimentalAnnotation("kotlin.contracts.ExperimentalContracts")
+            languageSettings.progressiveMode = true
         }
 
         commonMain {
@@ -48,12 +58,11 @@ kotlin {
                 api(kotlin("serialization"))
                 api(kotlin("reflect"))
 
-                api(kotlinx("coroutines-core-common", Versions.Kotlin.coroutines))
                 api(kotlinx("serialization-runtime-common", Versions.Kotlin.serialization))
                 api(kotlinx("serialization-protobuf-common", Versions.Kotlin.serialization))
                 api(kotlinx("io", Versions.Kotlin.io))
                 api(kotlinx("coroutines-io", Versions.Kotlin.coroutinesIo))
-                api(kotlinx("coroutines-core", Versions.Kotlin.coroutines))
+                api(kotlinx("coroutines-core-common", Versions.Kotlin.coroutines))
 
                 api("org.jetbrains.kotlinx:atomicfu-common:${Versions.Kotlin.atomicFU}")
 
@@ -77,8 +86,8 @@ kotlin {
                     api(kotlinx("io-jvm", Versions.Kotlin.io))
                     api(kotlinx("serialization-runtime", Versions.Kotlin.serialization))
                     api(kotlinx("serialization-protobuf", Versions.Kotlin.serialization))
-                    api(kotlinx("coroutines-android", Versions.Kotlin.coroutines))
                     api(kotlinx("coroutines-io-jvm", Versions.Kotlin.coroutinesIo))
+                    api(kotlinx("coroutines-core", Versions.Kotlin.coroutines))
 
                     api(ktor("client-android", Versions.Kotlin.ktor))
                 }
@@ -121,17 +130,6 @@ kotlin {
                 runtimeOnly(files("build/classes/kotlin/jvm/test")) // classpath is not properly set by IDE
             }
         }
-    }
-}
-
-tasks {
-    val dokka by getting(org.jetbrains.dokka.gradle.DokkaTask::class) {
-        outputFormat = "html"
-        outputDirectory = "$buildDir/dokka"
-    }
-    val dokkaMarkdown by creating(org.jetbrains.dokka.gradle.DokkaTask::class) {
-        outputFormat = "markdown"
-        outputDirectory = "$buildDir/dokka-markdown"
     }
 }
 

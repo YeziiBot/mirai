@@ -25,7 +25,6 @@ import net.mamoe.mirai.utils.WeakRefProperty
  * 群成员.
  */
 @Suppress("INAPPLICABLE_JVM_NAME")
-@OptIn(MiraiInternalAPI::class, JavaFriendlyAPI::class)
 actual abstract class Member : MemberJavaFriendlyAPI() {
     /**
      * 所在的群.
@@ -110,11 +109,14 @@ actual abstract class Member : MemberJavaFriendlyAPI() {
     /**
      * 向这个对象发送消息.
      *
+     * 单条消息最大可发送 4500 字符或 50 张图片.
+     *
      * @see FriendMessageSendEvent 发送好友信息事件, cancellable
      * @see GroupMessageSendEvent  发送群消息事件. cancellable
      *
-     * @throws EventCancelledException 当发送消息事件被取消
-     * @throws IllegalStateException 发送群消息时若 [Bot] 被禁言抛出
+     * @throws EventCancelledException 当发送消息事件被取消时抛出
+     * @throws BotIsBeingMutedException 发送群消息时若 [Bot] 被禁言抛出
+     * @throws MessageTooLargeException 当消息过长时抛出
      *
      * @return 消息回执. 可进行撤回 ([MessageReceipt.recall])
      */

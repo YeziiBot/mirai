@@ -23,17 +23,15 @@ import net.mamoe.mirai.message.data.Image
 import net.mamoe.mirai.message.data.Message
 import net.mamoe.mirai.message.uploadImage
 import net.mamoe.mirai.utils.ExternalImage
-import net.mamoe.mirai.utils.MiraiInternalAPI
 import net.mamoe.mirai.utils.OverFileSizeMaxException
 import java.io.File
 import java.io.InputStream
 import java.net.URL
 import java.util.concurrent.Future
 
-@MiraiInternalAPI
 @JavaFriendlyAPI
 @Suppress("INAPPLICABLE_JVM_NAME", "FunctionName", "unused")
-actual abstract class ContactJavaFriendlyAPI {
+internal actual abstract class ContactJavaFriendlyAPI {
 
     private inline fun <R> runBlocking(crossinline block: suspend Contact.() -> R): R {
         @Suppress("CAST_NEVER_SUCCEEDS")
@@ -48,24 +46,28 @@ actual abstract class ContactJavaFriendlyAPI {
     /**
      * 向这个对象发送消息.
      *
+     * 单条消息最大可发送 4500 字符或 50 张图片.
+     *
      * @see FriendMessageSendEvent 发送好友信息事件, cancellable
      * @see GroupMessageSendEvent  发送群消息事件. cancellable
      *
-     * @throws EventCancelledException 当发送消息事件被取消
-     * @throws IllegalStateException 发送群消息时若 [Bot] 被禁言抛出
+     * @throws EventCancelledException 当发送消息事件被取消时抛出
+     * @throws BotIsBeingMutedException 发送群消息时若 [Bot] 被禁言抛出
+     * @throws MessageTooLargeException 当消息过长时抛出     * @throws MessageTooLargeException 当消息过长时抛出
+
      *
      * @return 消息回执. 可 [引用回复][MessageReceipt.quote]（仅群聊）或 [撤回][MessageReceipt.recall] 这条消息.
      */
     @Throws(EventCancelledException::class, IllegalStateException::class)
     @JvmName("sendMessage")
-    open fun __sendMessageBlockingForJava__(message: Message): MessageReceipt<out Contact> {
+    open fun __sendMessageBlockingForJava__(message: Message): MessageReceipt<@JvmWildcard Contact> {
         return runBlocking {
             sendMessage(message)
         }
     }
 
     @JvmName("sendMessage")
-    open fun __sendMessageBlockingForJava__(message: String): MessageReceipt<out Contact> {
+    open fun __sendMessageBlockingForJava__(message: String): MessageReceipt<@JvmWildcard Contact> {
         return runBlocking { sendMessage(message) }
     }
 
@@ -139,7 +141,7 @@ actual abstract class ContactJavaFriendlyAPI {
      * @see Contact.sendMessage
      */
     @JvmName("sendMessageAsync")
-    open fun __sendMessageAsyncForJava__(message: Message): Future<MessageReceipt<out Contact>> {
+    open fun __sendMessageAsyncForJava__(message: Message): Future<MessageReceipt<@JvmWildcard Contact>> {
         return future { sendMessage(message) }
     }
 
@@ -148,7 +150,7 @@ actual abstract class ContactJavaFriendlyAPI {
      * @see Contact.sendMessage
      */
     @JvmName("sendMessageAsync")
-    open fun __sendMessageAsyncForJava__(message: String): Future<MessageReceipt<out Contact>> {
+    open fun __sendMessageAsyncForJava__(message: String): Future<MessageReceipt<@JvmWildcard Contact>> {
         return future { sendMessage(message) }
     }
 

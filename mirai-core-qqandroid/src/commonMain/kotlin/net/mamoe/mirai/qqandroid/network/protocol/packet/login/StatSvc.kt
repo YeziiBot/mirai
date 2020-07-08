@@ -10,11 +10,12 @@
 package net.mamoe.mirai.qqandroid.network.protocol.packet.login
 
 import kotlinx.io.core.ByteReadPacket
-import net.mamoe.mirai.qqandroid.network.Packet
+import kotlinx.serialization.protobuf.ProtoBuf
 import net.mamoe.mirai.event.events.BotOfflineEvent
 import net.mamoe.mirai.qqandroid.QQAndroidBot
-import net.mamoe.mirai.qqandroid.io.serialization.*
+import net.mamoe.mirai.qqandroid.network.Packet
 import net.mamoe.mirai.qqandroid.network.QQAndroidClient
+import net.mamoe.mirai.qqandroid.network.guid
 import net.mamoe.mirai.qqandroid.network.protocol.data.jce.RequestMSFForceOffline
 import net.mamoe.mirai.qqandroid.network.protocol.data.jce.RequestPacket
 import net.mamoe.mirai.qqandroid.network.protocol.data.jce.RspMSFForceOffline
@@ -22,13 +23,13 @@ import net.mamoe.mirai.qqandroid.network.protocol.data.jce.SvcReqRegister
 import net.mamoe.mirai.qqandroid.network.protocol.data.proto.Oidb0x769
 import net.mamoe.mirai.qqandroid.network.protocol.data.proto.StatSvcGetOnline
 import net.mamoe.mirai.qqandroid.network.protocol.packet.*
+import net.mamoe.mirai.qqandroid.utils.MiraiPlatformUtils
 import net.mamoe.mirai.qqandroid.utils.NetworkType
-import net.mamoe.mirai.utils.MiraiInternalAPI
-import net.mamoe.mirai.utils.MiraiPlatformUtils
-import net.mamoe.mirai.utils.io.encodeToString
-import net.mamoe.mirai.utils.io.toReadPacket
+import net.mamoe.mirai.qqandroid.utils.encodeToString
+import net.mamoe.mirai.qqandroid.utils.io.serialization.*
+import net.mamoe.mirai.qqandroid.utils.toReadPacket
 
-@Suppress("EnumEntryName")
+@Suppress("EnumEntryName", "unused")
 internal enum class RegPushReason {
     appRegister,
     createDefaultRegInfo,
@@ -87,9 +88,7 @@ internal class StatSvc {
             override fun toString(): String = "Response(StatSvc.register)"
         }
 
-        private const val subAppId = 537062845L
 
-        @OptIn(MiraiInternalAPI::class)
         operator fun invoke(
             client: QQAndroidClient,
             regPushReason: RegPushReason = RegPushReason.appRegister
@@ -100,7 +99,7 @@ internal class StatSvc {
             key = client.wLoginSigInfo.d2Key
         ) { sequenceId ->
             writeSsoPacket(
-                client, subAppId = subAppId, commandName = commandName,
+                client, subAppId = client.subAppId, commandName = commandName,
                 extraData = client.wLoginSigInfo.tgt.toReadPacket(), sequenceId = sequenceId
             ) {
                 writeJceStruct(
@@ -137,12 +136,9 @@ internal class StatSvc {
                                 strDevName = client.device.model.encodeToString(),
                                 strDevType = client.device.model.encodeToString(),
                                 strOSVer = client.device.version.release.encodeToString(),
-
                                 uOldSSOIp = 0,
-                                uNewSSOIp = MiraiPlatformUtils.localIpAddress().split(".")
-                                    .foldIndexed(0L) { index: Int, acc: Long, s: String ->
-                                        acc or ((s.toLong() shl (index * 16)))
-                                    },
+                                uNewSSOIp = MiraiPlatformUtils.localIpAddress().runCatching { ipToLong() }
+                                    .getOrElse { "192.168.1.123".ipToLong() },
                                 strVendorName = "MIUI",
                                 strVendorOSName = "?ONEPLUS A5000_23_17",
                                 // register 时还需要
@@ -152,7 +148,7 @@ internal class StatSvc {
                                 var44.strVendorName = ROMUtil.getRomName();
                                 var44.strVendorOSName = ROMUtil.getRomVersion(20);
                                 */
-                                bytes_0x769_reqbody = ProtoBufWithNullableSupport.dump(
+                                bytes_0x769_reqbody = ProtoBuf.dump(
                                     Oidb0x769.RequestBody.serializer(), Oidb0x769.RequestBody(
                                         rpt_config_list = listOf(
                                             Oidb0x769.ConfigSeq(
@@ -174,13 +170,19 @@ internal class StatSvc {
             }
         }
 
+        private fun String.ipToLong(): Long {
+            return split('.').foldIndexed(0L) { index: Int, acc: Long, s: String ->
+                acc or (((s.toLongOrNull() ?: 0) shl (index * 16)))
+            }
+        }
+
         override suspend fun ByteReadPacket.decode(bot: QQAndroidBot): Response {
             return Response
         }
     }
 
     internal object ReqMSFOffline :
-        IncomingPacketFactory<BotOfflineEvent.Dropped>("StatSvc.ReqMSFOffline", "StatSvc.RspMSFForceOffline") {
+        IncomingPacketFactory<BotOfflineEvent.MsfOffline>("StatSvc.ReqMSFOffline", "StatSvc.RspMSFForceOffline") {
 
         internal data class MsfOfflineToken(
             val uin: Long,
@@ -188,12 +190,13 @@ internal class StatSvc {
             val const: Byte
         ) : Packet, RuntimeException("dropped by StatSvc.ReqMSFOffline")
 
-        override suspend fun ByteReadPacket.decode(bot: QQAndroidBot, sequenceId: Int): BotOfflineEvent.Dropped {
-            val decodeUniPacket = decodeUniPacket(RequestMSFForceOffline.serializer())
-            return BotOfflineEvent.Dropped(bot, MsfOfflineToken(decodeUniPacket.uin, decodeUniPacket.iSeqno, 0))
+        override suspend fun ByteReadPacket.decode(bot: QQAndroidBot, sequenceId: Int): BotOfflineEvent.MsfOffline {
+            val decodeUniPacket = readUniPacket(RequestMSFForceOffline.serializer())
+            @Suppress("INVISIBLE_MEMBER")
+            return BotOfflineEvent.MsfOffline(bot, MsfOfflineToken(decodeUniPacket.uin, decodeUniPacket.iSeqno, 0))
         }
 
-        override suspend fun QQAndroidBot.handle(packet: BotOfflineEvent.Dropped, sequenceId: Int): OutgoingPacket? {
+        override suspend fun QQAndroidBot.handle(packet: BotOfflineEvent.MsfOffline, sequenceId: Int): OutgoingPacket? {
             val cause = packet.cause
             check(cause is MsfOfflineToken) { "internal error: handling $packet in StatSvc.ReqMSFOffline" }
             return buildResponseUniPacket(client) {

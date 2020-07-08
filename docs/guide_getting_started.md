@@ -1,6 +1,6 @@
 # Mirai Guide - Getting Started
 
-由于Mirai项目在快速推进中，因此内容时有变动，本文档的最后更新日期为```2020-02-29```，对应版本```0.23.0```
+由于Mirai项目在快速推进中，因此内容时有变动，本文档的最后更新日期为```2020-04-01```，对应版本```0.31.4```
 
 假如仅仅使用Mirai，不需要对整个项目进行Clone，只需在项目内添加Gradle Dependency或使用即可。
 
@@ -17,7 +17,7 @@
 
 ### 1 安装IDEA与JDK
 
-JDK要求6以上
+- JDK 要求6以上
 
 ### 2 新建Gradle项目
 
@@ -39,12 +39,14 @@ JDK要求6以上
   //添加jcenter仓库
   /*
   repositories {
+      maven { url 'https://dl.bintray.com/kotlin/kotlin-eap' }
       mavenCentral()
   }
   原文内容，更新为下文
   */
   
   repositories {
+      maven { url 'https://dl.bintray.com/kotlin/kotlin-eap' }
       mavenCentral()
       jcenter()
   }
@@ -54,7 +56,7 @@ JDK要求6以上
 
   ```groovy
   dependencies {
-      implementation 'net.mamoe:mirai-core-qqandroid-jvm:0.23.0'//此处版本应替换为当前最新
+      implementation 'net.mamoe:mirai-core-qqandroid:1.1-EA'//此处版本应替换为当前最新
       implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
       testCompile group: 'junit', name: 'junit', version: '4.12'
   }
@@ -76,6 +78,9 @@ package net.mamoe.mirai.simpleloader
 import kotlinx.coroutines.*
 import net.mamoe.mirai.Bot
 import net.mamoe.mirai.alsoLogin
+import net.mamoe.mirai.join
+import net.mamoe.mirai.message.data.At
+import net.mamoe.mirai.contact.Member
 import net.mamoe.mirai.event.subscribeMessages
 
 suspend fun main() {
@@ -85,11 +90,11 @@ suspend fun main() {
     miraiBot.subscribeMessages {
         "你好" reply "你好!"
         case("at me") {
-            reply(sender.at() + " 给爷爬 ")
+            reply(At(sender as Member) + " 给爷爬 ")
         }
 
         (contains("舔") or contains("刘老板")) {
-            "刘老板太强了".reply()
+            reply("刘老板太强了")
         }
     }
     miraiBot.join() // 等待 Bot 离线, 避免主线程退出
@@ -119,7 +124,7 @@ suspend fun main() {
 <dependencies>
     <dependency>
         <groupId>net.mamoe</groupId>
-        <artifactId>mirai-core-qqandroid-jvm</artifactId>
+        <artifactId>mirai-core-qqandroid</artifactId>
         <version>0.23.0</version> <!-- 替换版本为最新版本 -->
     </dependency>
 </dependencies>

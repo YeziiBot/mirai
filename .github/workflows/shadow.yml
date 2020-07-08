@@ -1,6 +1,6 @@
 # This is a basic workflow to help you get started with Actions
 
-name: Shadow Publish
+name: mirai-repo Publish
 
 # Controls when the action will run. Triggers the workflow on push or pull request 
 # events but only for the master branch
@@ -25,7 +25,7 @@ jobs:
       - name: Gradle clean
         run: ./gradlew clean
       - name: Gradle build
-        run: ./gradlew build
+        run: ./gradlew build # if test's failed, don't publish
       - name: Gradle :mirai-core:githubUpload
         run: ./gradlew :mirai-core:githubUpload -Dgithub_token=${{ secrets.MAMOE_TOKEN }} -Pgithub_token=${{ secrets.MAMOE_TOKEN }}
       - name: Gradle :mirai-core-qqandroid:githubUpload

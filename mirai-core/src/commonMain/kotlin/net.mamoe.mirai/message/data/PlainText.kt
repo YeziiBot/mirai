@@ -13,40 +13,37 @@
 
 package net.mamoe.mirai.message.data
 
+import net.mamoe.mirai.utils.PlannedRemoval
 import kotlin.jvm.JvmMultifileClass
 import kotlin.jvm.JvmName
-import kotlin.jvm.JvmStatic
 import kotlin.jvm.JvmSynthetic
 
 /**
- * 纯文本. 可含 emoji 表情.
+ * 纯文本. 可含 emoji 表情如 😊.
  *
- * 一般不需要主动构造 [PlainText], [Message] 可直接与 [String] 相加. Java 用户请使用 [MessageChain.plus]
+ * 一般不需要主动构造 [PlainText], [Message] 可直接与 [String] 相加. Java 用户请使用 [Message.plus]
  */
-class PlainText(val stringValue: String) :
-    MessageContent,
-    Comparable<String> by stringValue,
-    CharSequence by stringValue {
+data class PlainText(
+    val content: String
+) : MessageContent {
 
+    @PlannedRemoval("1.2.0")
+    @Deprecated(
+        "use content instead for clearer semantics",
+        level = DeprecationLevel.ERROR,
+        replaceWith = ReplaceWith("content")
+    )
+    val stringValue: String
+        get() = content
+
+    @Suppress("unused")
     constructor(charSequence: CharSequence) : this(charSequence.toString())
 
-    override operator fun contains(sub: String): Boolean = sub in stringValue
-    override fun toString(): String = stringValue
+    override fun toString(): String = content
+    override fun contentToString(): String = content
 
     companion object Key : Message.Key<PlainText> {
-        @JvmStatic
-        val Empty = PlainText("")
-
-        @JvmStatic
-        val Null = PlainText("null")
-
-        inline fun of(value: String): PlainText {
-            return PlainText(value)
-        }
-
-        inline fun of(value: CharSequence): PlainText {
-            return PlainText(value)
-        }
+        override val typeName: String get() = "PlainText"
     }
 }
 

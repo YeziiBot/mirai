@@ -7,23 +7,20 @@
  * https://github.com/mamoe/mirai/blob/master/LICENSE
  */
 
-@file:Suppress("FunctionName")
+@file:Suppress("FunctionName", "OverridingDeprecatedMember")
 
 package net.mamoe.mirai.qqandroid
 
 import net.mamoe.mirai.Bot
-import net.mamoe.mirai.BotAccount
 import net.mamoe.mirai.BotFactory
 import net.mamoe.mirai.qqandroid.QQAndroid.Bot
 import net.mamoe.mirai.utils.BotConfiguration
 import net.mamoe.mirai.utils.Context
-import net.mamoe.mirai.utils.MiraiInternalAPI
 
 /**
  * QQ for Android
  */
 @Suppress("INAPPLICABLE_JVM_NAME")
-@OptIn(MiraiInternalAPI::class)
 actual object QQAndroid : BotFactory {
 
     /**

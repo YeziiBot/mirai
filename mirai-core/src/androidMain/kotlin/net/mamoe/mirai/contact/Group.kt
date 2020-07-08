@@ -42,7 +42,6 @@ actual abstract class Group : Contact(), CoroutineScope {
     /**
      * 群设置
      */
-    @SinceMirai("0.30.0")
     actual abstract val settings: GroupSettings
 
     /**
@@ -115,7 +114,7 @@ actual abstract class Group : Contact(), CoroutineScope {
     actual abstract suspend fun quit(): Boolean
 
     /**
-     * 构造一个 [newMember].
+     * 构造一个 [Member].
      * 非特殊情况请不要使用这个函数. 优先使用 [get].
      */
     @LowLevelAPI
@@ -125,11 +124,14 @@ actual abstract class Group : Contact(), CoroutineScope {
     /**
      * 向这个对象发送消息.
      *
+     * 单条消息最大可发送 4500 字符或 50 张图片.
+     *
      * @see FriendMessageSendEvent 发送好友信息事件, cancellable
      * @see GroupMessageSendEvent  发送群消息事件. cancellable
      *
-     * @throws EventCancelledException 当发送消息事件被取消
-     * @throws IllegalStateException 发送群消息时若 [Bot] 被禁言抛出
+     * @throws EventCancelledException 当发送消息事件被取消时抛出
+     * @throws BotIsBeingMutedException 发送群消息时若 [Bot] 被禁言抛出
+     * @throws MessageTooLargeException 当消息过长时抛出
      *
      * @return 消息回执. 可进行撤回 ([MessageReceipt.recall])
      */

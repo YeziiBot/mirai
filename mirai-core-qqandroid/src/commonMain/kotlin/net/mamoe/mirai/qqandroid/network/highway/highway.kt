@@ -11,61 +11,53 @@
 
 package net.mamoe.mirai.qqandroid.network.highway
 
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.io.ByteReadChannel
-import kotlinx.io.InputStream
 import kotlinx.io.core.ByteReadPacket
-import kotlinx.io.core.Input
 import kotlinx.io.core.buildPacket
 import kotlinx.io.core.writeFully
-import net.mamoe.mirai.qqandroid.io.serialization.toByteArray
 import net.mamoe.mirai.qqandroid.network.QQAndroidClient
 import net.mamoe.mirai.qqandroid.network.protocol.data.proto.CSDataHighwayHead
 import net.mamoe.mirai.qqandroid.network.protocol.packet.EMPTY_BYTE_ARRAY
-import net.mamoe.mirai.utils.MiraiInternalAPI
-import net.mamoe.mirai.utils.io.*
-import kotlinx.serialization.InternalSerializationApi
-import net.mamoe.mirai.utils.MiraiPlatformUtils
+import net.mamoe.mirai.qqandroid.utils.ByteArrayPool
+import net.mamoe.mirai.qqandroid.utils.MiraiPlatformUtils
+import net.mamoe.mirai.qqandroid.utils.io.serialization.toByteArray
+import net.mamoe.mirai.utils.internal.ChunkedFlowSession
+import net.mamoe.mirai.utils.internal.ChunkedInput
+import net.mamoe.mirai.utils.internal.ReusableInput
+import net.mamoe.mirai.utils.internal.map
 
-@OptIn(MiraiInternalAPI::class, InternalSerializationApi::class)
-internal fun createImageDataPacketSequence( // RequestDataTrans
+
+internal fun createImageDataPacketSequence(
+    // RequestDataTrans
     client: QQAndroidClient,
     command: String,
-    appId: Int = 537062845,
+    appId: Int,
     dataFlag: Int = 4096,
     commandId: Int,
     localId: Int = 2052,
-    uKey: ByteArray,
-
-    data: Any,
-    dataSize: Int,
+    ticket: ByteArray,
+    data: ReusableInput,
     fileMd5: ByteArray,
-    sizePerPacket: Int = 8192
-): Flow<ByteReadPacket> {
+    sizePerPacket: Int = ByteArrayPool.BUFFER_SIZE
+): ChunkedFlowSession<ByteReadPacket> {
     ByteArrayPool.checkBufferSize(sizePerPacket)
-    require(data is Input || data is InputStream || data is ByteReadChannel) { "unsupported data: ${data::class.simpleName}" }
-    require(uKey.size == 128) { "bad uKey. Required size=128, got ${uKey.size}" }
-    require(data !is ByteReadPacket || data.remaining.toInt() == dataSize) { "bad input. given dataSize=$dataSize, but actual readRemaining=${(data as ByteReadPacket).remaining}" }
+    //   require(ticket.size == 128) { "bad uKey. Required size=128, got ${ticket.size}" }
 
-    val flow = when (data) {
-        is ByteReadPacket -> data.chunkedFlow(sizePerPacket)
-        is Input -> data.chunkedFlow(sizePerPacket)
-        is ByteReadChannel -> data.chunkedFlow(sizePerPacket)
-        is InputStream -> data.chunkedFlow(sizePerPacket)
-        else -> error("unreachable code")
-    }
+    val session: ChunkedFlowSession<ChunkedInput> = data.chunkedFlow(sizePerPacket)
 
     var offset = 0L
-    return flow.map { chunkedInput ->
+    return session.map { chunkedInput ->
         buildPacket {
             val head = CSDataHighwayHead.ReqDataHighwayHead(
                 msgBasehead = CSDataHighwayHead.DataHighwayHead(
                     version = 1,
                     uin = client.uin.toString(),
                     command = command,
-                    seq = if (commandId == 2) client.nextHighwayDataTransSequenceIdForGroup()
-                    else client.nextHighwayDataTransSequenceIdForFriend(),
+                    seq = when (commandId) {
+                        2 -> client.nextHighwayDataTransSequenceIdForGroup()
+                        1 -> client.nextHighwayDataTransSequenceIdForFriend()
+                        27 -> client.nextHighwayDataTransSequenceIdForApplyUp()
+                        else -> error("illegal commandId: $commandId")
+                    },
                     retryTimes = 0,
                     appid = appId,
                     dataflag = dataFlag,
@@ -73,11 +65,11 @@ internal fun createImageDataPacketSequence( // RequestDataTrans
                     localeId = localId
                 ),
                 msgSeghead = CSDataHighwayHead.SegHead(
-                 //   cacheAddr = 812157193,
+                    //   cacheAddr = 812157193,
                     datalength = chunkedInput.bufferSize,
                     dataoffset = offset,
-                    filesize = dataSize.toLong(),
-                    serviceticket = uKey,
+                    filesize = data.size,
+                    serviceticket = ticket,
                     md5 = MiraiPlatformUtils.md5(chunkedInput.buffer, 0, chunkedInput.bufferSize),
                     fileMd5 = fileMd5,
                     flag = 0,
